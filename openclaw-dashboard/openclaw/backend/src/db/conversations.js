@@ -11,6 +11,16 @@ export async function ensureConversation({ conversationId, topic } = {}) {
     if (existing.rowCount > 0) {
       return existing.rows[0];
     }
+  }
+
+  if (topic) {
+    const byTopic = await pool.query(
+      'SELECT * FROM conversations WHERE topic = $1 ORDER BY created_at DESC LIMIT 1',
+      [topic]
+    );
+    if (byTopic.rowCount > 0) {
+      return byTopic.rows[0];
+    }
   } else {
     const latest = await pool.query(
       'SELECT * FROM conversations ORDER BY created_at DESC LIMIT 1'

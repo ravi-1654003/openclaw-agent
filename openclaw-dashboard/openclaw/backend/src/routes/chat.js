@@ -11,13 +11,15 @@ const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:18789/v1/respon
 const GATEWAY_TOKEN = process.env.GATEWAY_TOKEN || 'my_token_1654003';
 const DEFAULT_PAGE_SIZE = Number(process.env.CHAT_PAGE_SIZE || 10);
 const MAX_PAGE_SIZE = Number(process.env.CHAT_PAGE_MAX || 50);
+const DEFAULT_AGENT_ID = (process.env.DEFAULT_AGENT_ID || 'main').trim();
 
 const seedTime = Date.now();
-const inMemoryConversationId = 'in-memory';
-const inMemoryMessages = [
+const seedMessages = [
   { role: 'agent', content: 'Hello from OpenClaw!', metadata: {}, created_at: new Date(seedTime - 2000).toISOString() },
   { role: 'user', content: 'Hi bot, show me my cron jobs.', metadata: {}, created_at: new Date(seedTime - 1000).toISOString() }
 ];
+
+const inMemoryConversations = new Map();
 
 const toLegacyMessage = (message) => ({
   from: message.role === 'user' ? 'you' : message.role,
@@ -27,8 +29,25 @@ const toLegacyMessage = (message) => ({
   created_at: message.created_at || new Date().toISOString()
 });
 
-const pushInMemoryMessage = ({ role, content, metadata }) => {
-  inMemoryMessages.push({
+const normalizeAgentId = (value) => {
+  if (!value) return DEFAULT_AGENT_ID;
+  return String(value).replace(/^agent:/i, '').trim() || DEFAULT_AGENT_ID;
+};
+
+const getInMemoryConversation = (agentId) => {
+  const normalized = normalizeAgentId(agentId);
+  if (!inMemoryConversations.has(normalized)) {
+    inMemoryConversations.set(normalized, {
+      id: `in-memory-${normalized}`,
+      messages: normalized === DEFAULT_AGENT_ID ? [...seedMessages] : []
+    });
+  }
+  return inMemoryConversations.get(normalized);
+};
+
+const pushInMemoryMessage = ({ agentId, role, content, metadata }) => {
+  const convo = getInMemoryConversation(agentId);
+  convo.messages.push({
     role,
     content,
     metadata: metadata || {},
@@ -85,14 +104,24 @@ const buildPageResponse = (messages, limit) => {
   return { messages: trimmed.map(toLegacyMessage), hasMore, nextCursor };
 };
 
+const buildGatewayModel = (agentId) => {
+  const normalized = normalizeAgentId(agentId);
+  if (normalized.startsWith('openclaw:') || normalized.startsWith('agent:')) {
+    return normalized;
+  }
+  return `openclaw:${normalized}`;
+};
+
 router.get('/', async (req, res) => {
   try {
-    const { conversationId, limit, before } = req.query;
+    const { conversationId, limit, before, agentId } = req.query;
     const pageSize = normalizeLimit(limit);
     const cursor = normalizeCursor(before);
+    const normalizedAgentId = normalizeAgentId(agentId);
 
     if (!isDatabaseConfigured()) {
-      let pool = [...inMemoryMessages];
+      const convo = getInMemoryConversation(normalizedAgentId);
+      let pool = [...convo.messages];
       if (cursor) {
         const cursorTime = new Date(cursor).getTime();
         pool = pool.filter((msg) => new Date(msg.created_at || 0).getTime() < cursorTime);
@@ -101,19 +130,20 @@ router.get('/', async (req, res) => {
       const subset = pool.slice(start);
       const payload = buildPageResponse(subset, pageSize);
       return res.json({
-        conversationId: inMemoryConversationId,
+        conversationId: convo.id,
+        agentId: normalizedAgentId,
         ...payload
       });
     }
 
-    const conversation = await ensureConversation({ conversationId });
+    const conversation = await ensureConversation({ conversationId, topic: normalizedAgentId });
     const rawMessages = await getConversationMessages(
       conversation.id,
       pageSize + 1,
       cursor
     );
     const payload = buildPageResponse(rawMessages, pageSize);
-    res.json({ conversationId: conversation.id, ...payload });
+    res.json({ conversationId: conversation.id, agentId: normalizedAgentId, ...payload });
   } catch (error) {
     console.error('[chat:get] error', error);
     res.status(500).json({ error: 'Unable to fetch conversation history' });
@@ -121,18 +151,19 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { text, conversationId, topic, metadata } = req.body || {};
+  const { text, conversationId, metadata, agentId } = req.body || {};
   if (!text || !text.trim()) {
     return res.status(400).json({ error: 'text is required' });
   }
 
+  const normalizedAgentId = normalizeAgentId(agentId);
   let conversation;
   try {
     if (isDatabaseConfigured()) {
-      conversation = await ensureConversation({ conversationId, topic });
+      conversation = await ensureConversation({ conversationId, topic: normalizedAgentId });
 
       const userEmbedding = await getEmbeddingForText(text);
-      const userMetadata = { source: 'user', ...(metadata || {}) };
+      const userMetadata = { source: 'user', agentId: normalizedAgentId, ...(metadata || {}) };
       await insertMessage({
         conversationId: conversation.id,
         role: 'user',
@@ -148,11 +179,11 @@ router.post('/', async (req, res) => {
         metadata: { ...userMetadata, conversationId: conversation.id }
       });
     } else {
-      conversation = { id: inMemoryConversationId };
-      pushInMemoryMessage({ role: 'user', content: text, metadata: { source: 'user', ...(metadata || {}) } });
+      conversation = getInMemoryConversation(normalizedAgentId);
+      pushInMemoryMessage({ agentId: normalizedAgentId, role: 'user', content: text, metadata: { source: 'user', ...(metadata || {}) } });
     }
 
-    console.log(`→ [ui→backend]: ${text}`);
+    console.log(`→ [ui→backend][${normalizedAgentId}]: ${text}`);
     const ocRes = await fetch(GATEWAY_URL, {
       method: 'POST',
       headers: {
@@ -161,7 +192,7 @@ router.post('/', async (req, res) => {
       },
       body: JSON.stringify({
         input: text,
-        model: 'openclaw:main'
+        model: buildGatewayModel(normalizedAgentId)
       })
     });
 
@@ -175,7 +206,7 @@ router.post('/', async (req, res) => {
         agentEmbedding = await getEmbeddingForText(reply);
       }
 
-      const agentMetadata = { source: 'agent' };
+      const agentMetadata = { source: 'agent', agentId: normalizedAgentId };
       await insertMessage({
         conversationId: conversation.id,
         role: 'agent',
@@ -191,43 +222,44 @@ router.post('/', async (req, res) => {
         metadata: { ...agentMetadata, conversationId: conversation.id }
       });
     } else {
-      pushInMemoryMessage({ role: 'agent', content: reply, metadata: { source: 'agent' } });
+      pushInMemoryMessage({ agentId: normalizedAgentId, role: 'agent', content: reply, metadata: { source: 'agent' } });
     }
 
-    console.log(`→ [backend→ui]: ${reply}`);
-    res.json({ reply, conversationId: conversation.id });
+    console.log(`→ [backend→ui][${normalizedAgentId}]: ${reply}`);
+    res.json({ reply, conversationId: conversation.id, agentId: normalizedAgentId });
   } catch (error) {
     console.error('[chat:post] error', error);
     const errorMsg = '⚠️ OpenClaw backend unavailable.';
 
     if (isDatabaseConfigured()) {
       try {
-        const conversation = await ensureConversation({ conversationId });
-        const errorMetadata = { source: 'error', detail: error.message };
+        const fallbackConversation = await ensureConversation({ conversationId, topic: normalizedAgentId });
+        const errorMetadata = { source: 'error', detail: error.message, agentId: normalizedAgentId };
         await insertMessage({
-          conversationId: conversation.id,
+          conversationId: fallbackConversation.id,
           role: 'agent',
           content: errorMsg,
           metadata: errorMetadata
         });
         await persistMemory({
-          conversationId: conversation.id,
+          conversationId: fallbackConversation.id,
           source: 'error',
           content: errorMsg,
-          metadata: { ...errorMetadata, conversationId: conversation.id }
+          metadata: { ...errorMetadata, conversationId: fallbackConversation.id }
         });
       } catch (dbError) {
         console.error('Failed to persist error message', dbError);
       }
     } else {
       pushInMemoryMessage({
+        agentId: normalizedAgentId,
         role: 'agent',
         content: errorMsg,
         metadata: { source: 'error', detail: error.message }
       });
     }
 
-    res.json({ reply: errorMsg, conversationId: conversation?.id || inMemoryConversationId });
+    res.json({ reply: errorMsg, conversationId: conversation?.id || getInMemoryConversation(normalizedAgentId).id, agentId: normalizedAgentId });
   }
 });
 

@@ -1,11 +1,15 @@
 import express from 'express';
+import { listCronJobs } from '../services/openclawCron.js';
+
 const router = express.Router();
 
-router.get('/', (_req, res) => {
-  res.json({ cronjobs: [
-    { id: 1, name: 'Daily Report', schedule: '0 9 * * *', status: 'active' },
-    { id: 2, name: 'Sprint Reminder', schedule: '0 12 * * 1', status: 'active' }
-  ] });
+router.get('/', async (_req, res, next) => {
+  try {
+    const jobs = await listCronJobs();
+    res.json({ jobs });
+  } catch (error) {
+    next(error);
+  }
 });
 
 export default router;

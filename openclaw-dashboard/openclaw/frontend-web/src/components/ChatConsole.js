@@ -50,9 +50,10 @@ const markdownComponents = {
   },
 };
 
-export default function ChatConsole() {
+export default function ChatConsole({ agentId = 'main' }) {
   const callApi = useCallback((path, options) => apiFetch(path, options), []);
 
+  const conversationCacheRef = useRef({});
   const [conversationId, setConversationId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -68,6 +69,14 @@ export default function ChatConsole() {
   const messagesContainerRef = useRef(null);
   const endRef = useRef(null);
   const suppressAutoScrollRef = useRef(false);
+
+  useEffect(() => {
+    setConversationId(conversationCacheRef.current[agentId] || null);
+    setMessages([]);
+    setHistoryCursor(null);
+    setHasMore(true);
+    setInitialLoading(true);
+  }, [agentId]);
 
   const initializeSpeechRecognition = useCallback(() => {
     if (speechRecognitionRef.current || typeof window === 'undefined') return speechRecognitionRef.current;
@@ -124,6 +133,7 @@ export default function ChatConsole() {
     const params = new URLSearchParams({ limit: PAGE_SIZE.toString() });
     if (cursor) params.set('before', cursor);
     if (conversationId) params.set('conversationId', conversationId);
+    if (agentId) params.set('agentId', agentId);
 
     const container = messagesContainerRef.current;
     const previousHeight = prepend && container ? container.scrollHeight : 0;
@@ -132,7 +142,9 @@ export default function ChatConsole() {
     try {
       const res = await callApi(`/api/chat?${params.toString()}`);
       const data = await res.json();
-      setConversationId(data.conversationId || null);
+      const nextConversationId = data.conversationId || null;
+      conversationCacheRef.current[agentId] = nextConversationId;
+      setConversationId(nextConversationId);
       setHasMore(Boolean(data.hasMore));
       setHistoryCursor(data.nextCursor || null);
       const chunk = data.messages || [];
@@ -156,7 +168,7 @@ export default function ChatConsole() {
       setLoadingHistory(false);
       setInitialLoading(false);
     }
-  }, [callApi, scrollToBottom, conversationId]);
+  }, [callApi, scrollToBottom, conversationId, agentId]);
 
   useEffect(() => {
     fetchMessages();
@@ -202,10 +214,13 @@ export default function ChatConsole() {
       const res = await callApi('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: textToSend, conversationId }),
+        body: JSON.stringify({ text: textToSend, conversationId, agentId }),
       });
       const data = await res.json();
-      if (data.conversationId) setConversationId(data.conversationId);
+      if (data.conversationId) {
+        conversationCacheRef.current[agentId] = data.conversationId;
+        setConversationId(data.conversationId);
+      }
       setMessages(prevMsgs => {
         const msgsCopy = [...prevMsgs];
         const idx = thinkingIdx ?? msgsCopy.findIndex(m => m.thinking);

@@ -7,6 +7,7 @@ import CronJobs from './pages/CronJobs';
 import Sessions from './pages/Sessions';
 import Contact from './pages/Contact';
 import { AppBar, Toolbar, Typography, Box, Button } from '@mui/material';
+import { AgentProvider } from './context/AgentContext';
 
 const menuItems = [
   { label: 'Chat', path: '/' },
@@ -68,49 +69,51 @@ const SideMenu = () => {
 
 function App() {
   return (
-    <Router>
-      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-        <AppBar position="static" elevation={0} sx={{ backgroundColor: '#111827' }}>
-          <Toolbar sx={{ minHeight: 64 }}>
-            <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 700 }}>
-              Axcel.ai Dashboard
-            </Typography>
-          </Toolbar>
-        </AppBar>
-        <Box
-          sx={{
-            display: 'flex',
-            gap: 2,
-            px: 2,
-            py: 2,
-            backgroundColor: '#e2e8f0',
-            flex: 1,
-            boxSizing: 'border-box',
-            overflow: 'hidden',
-          }}
-        >
-          <SideMenu />
+    <AgentProvider>
+      <Router>
+        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+          <AppBar position="static" elevation={0} sx={{ backgroundColor: '#111827' }}>
+            <Toolbar sx={{ minHeight: 64 }}>
+              <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 700 }}>
+                Axcel.ai Dashboard
+              </Typography>
+            </Toolbar>
+          </AppBar>
           <Box
             sx={{
-              flexGrow: 1,
-              width: '85%',
-              height: '100%',
-              backgroundColor: 'transparent',
+              display: 'flex',
+              gap: 2,
+              px: 2,
+              py: 2,
+              backgroundColor: '#e2e8f0',
+              flex: 1,
+              boxSizing: 'border-box',
               overflow: 'hidden',
             }}
           >
-            <Routes>
-              <Route path="/" element={<Chat />} />
-              <Route path="/agents" element={<Agents />} />
-              <Route path="/skills" element={<Skills />} />
-              <Route path="/cron" element={<CronJobs />} />
-              <Route path="/sessions" element={<Sessions />} />
-              <Route path="/contact" element={<Contact />} />
-            </Routes>
+            <SideMenu />
+            <Box
+              sx={{
+                flexGrow: 1,
+                width: '85%',
+                height: '100%',
+                backgroundColor: 'transparent',
+                overflow: 'hidden',
+              }}
+            >
+              <Routes>
+                <Route path="/" element={<Chat />} />
+                <Route path="/agents" element={<Agents />} />
+                <Route path="/skills" element={<Skills />} />
+                <Route path="/cron" element={<CronJobs />} />
+                <Route path="/sessions" element={<Sessions />} />
+                <Route path="/contact" element={<Contact />} />
+              </Routes>
+            </Box>
           </Box>
         </Box>
-      </Box>
-    </Router>
+      </Router>
+    </AgentProvider>
   );
 }
 export default App;
