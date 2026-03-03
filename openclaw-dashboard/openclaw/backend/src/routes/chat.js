@@ -1,6 +1,6 @@
 import express from 'express';
 import fetch from 'node-fetch';
-import { ensureConversation, getConversationMessages, insertMessage } from '../db/conversations.js';
+import { ensureConversation, getConversationMessages, insertMessage, getConversationById } from '../db/conversations.js';
 import { insertMemory } from '../db/memories.js';
 import { getEmbeddingForText, embeddingsConfig } from '../lib/embeddings.js';
 import { isDatabaseConfigured } from '../db/client.js';
@@ -112,6 +112,15 @@ const buildGatewayModel = (agentId) => {
   return `openclaw:${normalized}`;
 };
 
+const sanitizeConversationId = async (conversationId, agentId) => {
+  if (!conversationId) return null;
+  if (!isDatabaseConfigured()) return conversationId;
+  const existing = await getConversationById(conversationId);
+  if (!existing) return null;
+  if (existing.topic && existing.topic !== agentId) return null;
+  return conversationId;
+};
+
 router.get('/', async (req, res) => {
   try {
     const { conversationId, limit, before, agentId } = req.query;
@@ -136,7 +145,8 @@ router.get('/', async (req, res) => {
       });
     }
 
-    const conversation = await ensureConversation({ conversationId, topic: normalizedAgentId });
+    const effectiveConversationId = await sanitizeConversationId(conversationId, normalizedAgentId);
+    const conversation = await ensureConversation({ conversationId: effectiveConversationId, topic: normalizedAgentId });
     const rawMessages = await getConversationMessages(
       conversation.id,
       pageSize + 1,
@@ -160,7 +170,8 @@ router.post('/', async (req, res) => {
   let conversation;
   try {
     if (isDatabaseConfigured()) {
-      conversation = await ensureConversation({ conversationId, topic: normalizedAgentId });
+      const effectiveConversationId = await sanitizeConversationId(conversationId, normalizedAgentId);
+      conversation = await ensureConversation({ conversationId: effectiveConversationId, topic: normalizedAgentId });
 
       const userEmbedding = await getEmbeddingForText(text);
       const userMetadata = { source: 'user', agentId: normalizedAgentId, ...(metadata || {}) };
@@ -233,7 +244,8 @@ router.post('/', async (req, res) => {
 
     if (isDatabaseConfigured()) {
       try {
-        const fallbackConversation = await ensureConversation({ conversationId, topic: normalizedAgentId });
+        const effectiveConversationId = await sanitizeConversationId(conversationId, normalizedAgentId);
+        const fallbackConversation = await ensureConversation({ conversationId: effectiveConversationId, topic: normalizedAgentId });
         const errorMetadata = { source: 'error', detail: error.message, agentId: normalizedAgentId };
         await insertMessage({
           conversationId: fallbackConversation.id,

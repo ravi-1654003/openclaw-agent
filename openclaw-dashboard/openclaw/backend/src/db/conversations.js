@@ -4,6 +4,13 @@ import { toVectorParam, toJsonbParam } from './utils.js';
 
 const defaultLimit = 50;
 
+export async function getConversationById(id) {
+  if (!id) return null;
+  await ready;
+  const result = await pool.query('SELECT * FROM conversations WHERE id = $1 LIMIT 1', [id]);
+  return result.rowCount ? result.rows[0] : null;
+}
+
 export async function ensureConversation({ conversationId, topic } = {}) {
   await ready;
   if (conversationId) {
