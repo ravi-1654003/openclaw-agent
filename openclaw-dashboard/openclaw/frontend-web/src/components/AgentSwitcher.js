@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, FormControl, InputLabel, MenuItem, Select, Typography } from '@mui/material';
+import { Box, FormControl, InputLabel, MenuItem, Select } from '@mui/material';
 import { useAgentContext } from '../context/AgentContext';
 
 const AgentSwitcher = ({ label = 'Active Agent', size = 'small', sx }) => {
@@ -7,17 +7,25 @@ const AgentSwitcher = ({ label = 'Active Agent', size = 'small', sx }) => {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, ...sx }}>
-      <Typography variant="caption" color="text.secondary">
-        {loading ? 'Loading agents…' : 'Select the agent to drive this view'}
-      </Typography>
       <FormControl size={size} fullWidth>
-        <InputLabel id="agent-switcher-label">{label}</InputLabel>
+        <InputLabel
+          id="agent-switcher-label"
+          sx={{ color: '#fff', '&.Mui-focused': { color: '#fff' } }}
+        >
+          {label}
+        </InputLabel>
         <Select
           labelId="agent-switcher-label"
           value={selectedAgentId || ''}
           label={label}
           onChange={(event) => setSelectedAgentId(event.target.value)}
           disabled={loading || !agents.length}
+          sx={{
+            color: '#fff',
+            '.MuiOutlinedInput-notchedOutline': { borderColor: '#fff' },
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#fff' },
+            '& .MuiSvgIcon-root': { color: '#fff' }
+          }}
         >
           {agents.map((agent) => (
             <MenuItem key={agent.id} value={agent.id}>

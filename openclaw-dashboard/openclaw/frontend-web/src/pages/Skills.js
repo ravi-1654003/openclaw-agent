@@ -1,11 +1,10 @@
 import React from 'react';
-import { Box, Chip, CircularProgress, Divider, List, ListItem, ListItemText, Typography } from '@mui/material';
+import { Box, Divider, Typography } from '@mui/material';
 import { useAgentContext } from '../context/AgentContext';
-import { useSkills } from '../hooks/useSkills';
+import AgentSkillPanel from '../components/AgentSkillPanel';
 
 function Skills() {
   const { selectedAgentId } = useAgentContext();
-  const { skills, loading, error } = useSkills({ agentId: selectedAgentId, pollInterval: 8000 });
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, height: '100%' }}>
@@ -13,33 +12,9 @@ function Skills() {
         <Typography variant="h5" fontWeight={700}>Skills</Typography>
       </Box>
       <Divider />
-      {loading && (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <CircularProgress size={18} />
-          <Typography variant="body2">Loading skills…</Typography>
-        </Box>
-      )}
-      {error && (
-        <Typography color="error">Unable to load skills</Typography>
-      )}
-      <List dense sx={{ flex: 1, overflowY: 'auto', borderRadius: 2, bgcolor: '#fff', p: 2 }}>
-        {skills.map((skill) => (
-          <ListItem key={skill.name} alignItems="flex-start" sx={{ flexDirection: 'column', alignItems: 'flex-start' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-              <Typography variant="subtitle1" fontWeight={700}>{skill.name}</Typography>
-              {skill.source && <Chip size="small" label={skill.source} />}
-            </Box>
-            {skill.description && (
-              <ListItemText primaryTypographyProps={{ variant: 'body2', color: 'text.secondary' }}>
-                {skill.description}
-              </ListItemText>
-            )}
-          </ListItem>
-        ))}
-        {!loading && !skills.length && (
-          <Typography variant="body2" color="text.secondary">No skills detected for this agent yet.</Typography>
-        )}
-      </List>
+      <Box sx={{ flex: 1, minHeight: 0 }}>
+        <AgentSkillPanel agentId={selectedAgentId} pollInterval={8000} />
+      </Box>
     </Box>
   );
 }
