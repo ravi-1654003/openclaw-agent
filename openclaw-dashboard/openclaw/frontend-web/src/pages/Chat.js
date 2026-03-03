@@ -1,7 +1,6 @@
 import React from 'react';
 import { Box, Divider } from '@mui/material';
 import ChatConsole from '../components/ChatConsole';
-import AgentSwitcher from '../components/AgentSwitcher';
 import AgentSkillPanel from '../components/AgentSkillPanel';
 import { useAgentContext } from '../context/AgentContext';
 
@@ -10,7 +9,6 @@ function Chat() {
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <AgentSwitcher sx={{ maxWidth: 320 }} />
       <Divider />
       <Box sx={{ display: 'flex', gap: 2, flex: 1, minHeight: 0 }}>
         <Box sx={{ flex: 3, minHeight: 0 }}>

@@ -1,6 +1,5 @@
 import React from 'react';
 import { Box, Chip, CircularProgress, Divider, List, ListItem, ListItemText, Typography } from '@mui/material';
-import AgentSwitcher from '../components/AgentSwitcher';
 import { useAgentContext } from '../context/AgentContext';
 import { useSkills } from '../hooks/useSkills';
 
@@ -12,7 +11,6 @@ function Skills() {
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, height: '100%' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="h5" fontWeight={700}>Skills</Typography>
-        <AgentSwitcher sx={{ maxWidth: 300 }} />
       </Box>
       <Divider />
       {loading && (

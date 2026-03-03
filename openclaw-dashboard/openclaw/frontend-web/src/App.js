@@ -8,6 +8,7 @@ import Sessions from './pages/Sessions';
 import Contact from './pages/Contact';
 import { AppBar, Toolbar, Typography, Box, Button } from '@mui/material';
 import { AgentProvider } from './context/AgentContext';
+import AgentSwitcher from './components/AgentSwitcher';
 
 const menuItems = [
   { label: 'Chat', path: '/' },
@@ -73,10 +74,13 @@ function App() {
       <Router>
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
           <AppBar position="static" elevation={0} sx={{ backgroundColor: '#111827' }}>
-            <Toolbar sx={{ minHeight: 64 }}>
+            <Toolbar sx={{ minHeight: 64, gap: 2 }}>
               <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 700 }}>
                 Axcel.ai Dashboard
               </Typography>
+              <Box sx={{ minWidth: 220 }}>
+                <AgentSwitcher size="small" sx={{ minWidth: 220, backgroundColor: '#1f2937', borderRadius: 1, color: '#fff' }} />
+              </Box>
             </Toolbar>
           </AppBar>
           <Box
