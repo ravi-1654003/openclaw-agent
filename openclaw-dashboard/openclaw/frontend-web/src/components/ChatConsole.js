@@ -54,6 +54,7 @@ export default function ChatConsole({ agentId = 'main' }) {
   const callApi = useCallback((path, options) => apiFetch(path, options), []);
 
   const conversationCacheRef = useRef({});
+  const messagesCacheRef = useRef({});
   const [conversationId, setConversationId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -70,13 +71,27 @@ export default function ChatConsole({ agentId = 'main' }) {
   const endRef = useRef(null);
   const suppressAutoScrollRef = useRef(false);
 
+  const setMessagesForAgent = useCallback((updater) => {
+    setMessages((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      messagesCacheRef.current[agentId] = next;
+      return next;
+    });
+  }, [agentId]);
+
   useEffect(() => {
     setConversationId(conversationCacheRef.current[agentId] || null);
-    setMessages([]);
+    const cachedMessages = messagesCacheRef.current[agentId];
+    if (cachedMessages) {
+      setMessagesForAgent(cachedMessages);
+      setInitialLoading(false);
+    } else {
+      setMessagesForAgent([]);
+      setInitialLoading(true);
+    }
     setHistoryCursor(null);
     setHasMore(true);
-    setInitialLoading(true);
-  }, [agentId]);
+  }, [agentId, setMessagesForAgent]);
 
   const initializeSpeechRecognition = useCallback(() => {
     if (speechRecognitionRef.current || typeof window === 'undefined') return speechRecognitionRef.current;
@@ -149,7 +164,7 @@ export default function ChatConsole({ agentId = 'main' }) {
       setHistoryCursor(data.nextCursor || null);
       const chunk = data.messages || [];
 
-      setMessages(prev => (prepend ? [...chunk, ...prev] : chunk));
+      setMessagesForAgent(prev => (prepend ? [...chunk, ...prev] : chunk));
 
       if (prepend && container) {
         suppressAutoScrollRef.current = true;
@@ -205,7 +220,7 @@ export default function ChatConsole({ agentId = 'main' }) {
     setLoading(true);
     setInput('');
     const thinkingMessage = { from: 'agent', thinking: true };
-    setMessages(prevMsgs => {
+    setMessagesForAgent(prevMsgs => {
       const nextIdx = prevMsgs.length + 1;
       setThinkingIdx(nextIdx);
       return [...prevMsgs, { from: 'you', text: textToSend }, thinkingMessage];
@@ -221,7 +236,7 @@ export default function ChatConsole({ agentId = 'main' }) {
         conversationCacheRef.current[agentId] = data.conversationId;
         setConversationId(data.conversationId);
       }
-      setMessages(prevMsgs => {
+      setMessagesForAgent(prevMsgs => {
         const msgsCopy = [...prevMsgs];
         const idx = thinkingIdx ?? msgsCopy.findIndex(m => m.thinking);
         if (idx !== -1) msgsCopy[idx] = { from: 'agent', text: data.reply };
@@ -231,7 +246,7 @@ export default function ChatConsole({ agentId = 'main' }) {
       scrollToBottom();
     } catch (e) {
       console.error('sendMessage failed', e);
-      setMessages(prevMsgs => {
+      setMessagesForAgent(prevMsgs => {
         const msgsCopy = [...prevMsgs];
         const idx = thinkingIdx ?? msgsCopy.findIndex(m => m.thinking);
         const fallback = '⚠️ Error contacting OpenClaw agent.';
