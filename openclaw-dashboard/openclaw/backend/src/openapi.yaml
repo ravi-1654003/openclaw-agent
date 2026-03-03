@@ -1,0 +1,95 @@
+openapi: 3.0.0
+info:
+  title: OpenClaw Dashboard API
+  version: 1.0.0
+servers:
+  - url: /api
+paths:
+  /chat:
+    get:
+      summary: Get chat history
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  messages:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        from: { type: string }
+                        text: { type: string }
+    post:
+      summary: Send a message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text:
+                  type: string
+      responses:
+        200:
+          description: Agent reply
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reply: { type: string }
+  /contacts:
+    get:
+      summary: List saved contacts
+      responses:
+        200:
+          description: Contact list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contacts:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        name: { type: string }
+                        email: { type: string }
+                        phone: { type: string }
+                        created_at: { type: string, format: date-time }
+    post:
+      summary: Save a new contact request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email]
+              properties:
+                name: { type: string }
+                email: { type: string, format: email }
+                phone: { type: string }
+      responses:
+        201:
+          description: Contact saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contact:
+                    type: object
+                    properties:
+                      id: { type: string }
+                      name: { type: string }
+                      email: { type: string }
+                      phone: { type: string }
+                      created_at: { type: string, format: date-time }
