@@ -14,7 +14,7 @@ function Chat() {
       <Divider />
       <Box sx={{ display: 'flex', gap: 2, flex: 1, minHeight: 0 }}>
         <Box sx={{ flex: 3, minHeight: 0 }}>
-          <ChatConsole agentId={selectedAgentId} />
+          <ChatConsole key={selectedAgentId} agentId={selectedAgentId} />
         </Box>
         <Box sx={{ flex: 1, minWidth: 260, minHeight: 0 }}>
           <AgentSkillPanel agentId={selectedAgentId} />
